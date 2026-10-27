@@ -1,0 +1,39 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard"
+  ],
+  "description": [
+    "Renovate discovers dependency managers from the manifests and tooling files in this repository."
+  ],
+  "labels": [
+    "dependencies"
+  ],
+  "schedule": [
+    "before 9am on monday"
+  ],
+  "timezone": "Asia/Shanghai",
+  "automerge": false,
+  "platformAutomerge": false,
+  "ignoreTests": false,
+  "packageRules": [
+    {
+      "description": "Never automerge major updates.",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false
+    },
+    {
+      "description": "Automerge stable non-major updates after all status checks pass.",
+      "matchCurrentVersion": "!/^0/",
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin"
+      ],
+      "automerge": true
+    }
+  ]
+}

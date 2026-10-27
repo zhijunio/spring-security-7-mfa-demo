@@ -1,0 +1,92 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+### VS Code ###
+.vscode/
+# === spring-boot-developer additions ===
+# Maven / Java
+/target/
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/timing.properties
+# IDEs
+.idea/
+*.classpath
+*.project
+*.settings/
+# Logs
+logs/
+*.log
+# OS
+.DS_Store
+Thumbs.db
+# Node frontend (Vite, Angular, or Next.js)
+frontend/node_modules/
+frontend/dist/
+frontend/.next/
+frontend/out/
+frontend/.vite/
+frontend/.eslintcache
+# Front-end build output. Vite / the Angular CLI can write into Spring Boot's
+# static folder during `generate-resources`; Next.js static exports are copied
+# into the build output directory. Treat generated frontend files as disposable.
+# The placeholder `index.html` shipped for frontend-less projects stays tracked;
+# once you add a frontend/ project the build overwrites it, so add
+# `/src/main/resources/static/index.html` here too if you do not want that diff.
+/src/main/resources/static/assets/
+/src/main/resources/static/*.js
+/src/main/resources/static/*.css
+/src/main/resources/static/*.map
+# Testcontainers / Docker
+.testcontainers.properties
+**/.testcontainers/*
+.docker/
+*.pid
+# Coverage / reports
+coverage/
+jacoco.exec
+surefire-reports/
+failsafe-reports/
+# SBOM / scans (regenerate in CI)
+cyclonedx-*.xml
+cyclonedx-*.json
+dependency-check-report.*
+# Env files
+.env
+.env.*
+.env.local
+!.env.sample
+.bootui/
+# Native builds
+**/*.exe
+*.dll
+*.so
+/target/*-exec
+# Misc
+*.orig
+*.rej
+# JDTLS per-project workspace (see .github/lsp.json)
+.jdtls-workspace/

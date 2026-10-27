@@ -1,0 +1,178 @@
+package com.example.springsecuritymfa.config;
+
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Optional;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.ansi.AnsiColor;
+import org.springframework.boot.ansi.AnsiOutput;
+import org.springframework.boot.ansi.AnsiStyle;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.boot.web.server.WebServer;
+import org.springframework.boot.web.server.context.WebServerApplicationContext;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationListener;
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Component;
+import org.springframework.util.ClassUtils;
+
+/**
+ * Prints a friendly banner at startup showing the URLs where the
+ * application (and, if present, the OpenAPI endpoints and Vite dev server) can be reached.
+ */
+@Component
+public class StartupInfoListener implements ApplicationListener<ApplicationReadyEvent> {
+
+    private static final Logger log = LoggerFactory.getLogger(StartupInfoListener.class);
+
+    /**
+     * Returns the port the web server actually bound to. Reading {@code server.port} is not
+     * enough: with {@code server.port=0} (random port, used by
+     * {@code @SpringBootTest(webEnvironment = RANDOM_PORT)}) that property is literally "0".
+     */
+    private String resolvePort(ApplicationContext context, Environment env) {
+        if (context instanceof WebServerApplicationContext webServerContext) {
+            WebServer webServer = webServerContext.getWebServer();
+            if (webServer != null && webServer.getPort() > 0) {
+                return String.valueOf(webServer.getPort());
+            }
+        }
+        return env.getProperty("local.server.port", env.getProperty("server.port", "8080"));
+    }
+
+    @Override
+    public void onApplicationEvent(ApplicationReadyEvent event) {
+        Environment env = event.getApplicationContext().getEnvironment();
+
+        String protocol = "true".equalsIgnoreCase(env.getProperty("server.ssl.enabled")) ? "https" : "http";
+        String serverPort = resolvePort(event.getApplicationContext(), env);
+        String contextPath = env.getProperty("server.servlet.context-path", "/");
+        if (!contextPath.endsWith("/")) {
+            contextPath = contextPath + "/";
+        }
+
+        String hostAddress = "localhost";
+        try {
+            hostAddress = InetAddress.getLocalHost().getHostAddress();
+        } catch (UnknownHostException e) {
+            log.warn("Could not determine host address, defaulting to 'localhost'");
+        }
+
+        String appName = env.getProperty("spring.application.name", "Application");
+        String profiles = env.getActiveProfiles().length == 0
+                ? String.join(", ", env.getDefaultProfiles())
+                : String.join(", ", env.getActiveProfiles());
+
+        String viteHint = viteDevServerHint(env);
+        String openApiHint = openApiHint(
+                event.getApplicationContext(), env, protocol, serverPort, contextPath);
+
+        String banner = AnsiOutput.toString(
+                "\n",
+                AnsiColor.GREEN, "----------------------------------------------------------\n",
+                AnsiColor.GREEN, "  ", AnsiStyle.BOLD, appName, AnsiStyle.NORMAL,
+                AnsiColor.GREEN, " is running! Access URLs:\n",
+                AnsiColor.GREEN, "  Local:       ", AnsiColor.DEFAULT,
+                protocol, "://localhost:", serverPort, contextPath, "\n",
+                AnsiColor.GREEN, "  External:    ", AnsiColor.DEFAULT,
+                protocol, "://", hostAddress, ":", serverPort, contextPath, "\n",
+                AnsiColor.GREEN, "  API:         ", AnsiColor.DEFAULT,
+                protocol, "://localhost:", serverPort, "/api\n",
+                AnsiColor.GREEN, "  Actuator:    ", AnsiColor.DEFAULT,
+                protocol, "://localhost:", serverPort, "/actuator\n",
+                openApiHint,
+                AnsiColor.GREEN, "  Profile(s):  ", AnsiColor.DEFAULT, profiles, "\n",
+                viteHint,
+                AnsiColor.GREEN, "----------------------------------------------------------",
+                AnsiColor.DEFAULT);
+
+        log.info(banner);
+    }
+
+    /** Prints springdoc URLs only when their optional modules are present and enabled. */
+    private String openApiHint(
+            ApplicationContext context, Environment env, String protocol, String port, String contextPath) {
+        ClassLoader classLoader = context.getClassLoader();
+        boolean apiDocsAvailable = ClassUtils.isPresent("org.springdoc.core.service.OpenAPIService", classLoader)
+                && env.getProperty("springdoc.api-docs.enabled", Boolean.class, true);
+        boolean swaggerUiAvailable = ClassUtils.isPresent("org.springdoc.webmvc.ui.SwaggerConfig", classLoader)
+                && env.getProperty("springdoc.swagger-ui.enabled", Boolean.class, true);
+        if (!apiDocsAvailable && !swaggerUiAvailable) {
+            return "";
+        }
+
+        StringBuilder hint = new StringBuilder();
+        if (apiDocsAvailable) {
+            String path = env.getProperty("springdoc.api-docs.path", "/v3/api-docs");
+            hint.append(AnsiOutput.toString(
+                    AnsiColor.GREEN, "  OpenAPI:     ", AnsiColor.DEFAULT,
+                    protocol, "://localhost:", port, contextPath + pathWithoutLeadingSlash(path), "\n"));
+        }
+        if (swaggerUiAvailable) {
+            String path = env.getProperty("springdoc.swagger-ui.path", "/swagger-ui.html");
+            hint.append(AnsiOutput.toString(
+                    AnsiColor.GREEN, "  Swagger UI:  ", AnsiColor.DEFAULT,
+                    protocol, "://localhost:", port, contextPath + pathWithoutLeadingSlash(path), "\n"));
+        }
+        return hint.toString();
+    }
+
+    private String pathWithoutLeadingSlash(String path) {
+        return path.startsWith("/") ? path.substring(1) : path;
+    }
+
+    /** If a {@code frontend/} folder exists next to the process, hint at the Vite dev URL. */
+    private String viteDevServerHint(Environment env) {
+        Path frontend = Paths.get(System.getProperty("user.dir"), "frontend");
+        if (!Files.isDirectory(frontend)) {
+            return "";
+        }
+        int vitePort = parsePort(env.getProperty("VITE_PORT"))
+                .or(() -> readVitePort(frontend))
+                .orElse(5173);
+        return AnsiOutput.toString(
+                AnsiColor.GREEN, "  Front-end:   ", AnsiColor.DEFAULT,
+                "http://localhost:", String.valueOf(vitePort),
+                "  ", AnsiStyle.FAINT, "(run 'npm run dev' in frontend/ for hot-reload)",
+                AnsiStyle.NORMAL, "\n");
+    }
+
+    private Optional<Integer> readVitePort(Path frontendDir) {
+        try {
+            Path cfg = frontendDir.resolve("vite.config.js");
+            if (!Files.isRegularFile(cfg)) {
+                cfg = frontendDir.resolve("vite.config.ts");
+            }
+            if (!Files.isRegularFile(cfg)) {
+                return Optional.empty();
+            }
+            String body = Files.readString(cfg);
+            return Arrays.stream(body.split("\n"))
+                    .map(String::trim)
+                    .filter(line -> line.startsWith("port:"))
+                    .findFirst()
+                    .map(line -> line.replaceAll("[^0-9]", ""))
+                    .filter(digits -> !digits.isEmpty())
+                    .map(Integer::parseInt);
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    private Optional<Integer> parsePort(String value) {
+        if (value == null || value.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(Integer.parseInt(value));
+        } catch (NumberFormatException e) {
+            return Optional.empty();
+        }
+    }
+}

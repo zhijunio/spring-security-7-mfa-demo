@@ -1,0 +1,22 @@
+[tools]
+java = "temurin-25"
+
+[tasks.test]
+description = "Run the test suite"
+run = "./mvnw test"
+run_windows = "mvnw.cmd test"
+
+[tasks.verify]
+description = "Run verification and package checks"
+run = "./mvnw verify"
+run_windows = "mvnw.cmd verify"
+
+[tasks.format]
+description = "Apply Java formatting"
+run = "./mvnw spotless:apply"
+run_windows = "mvnw.cmd spotless:apply"
+
+[tasks.run]
+description = "Run the application"
+run = "./mvnw spring-boot:run"
+run_windows = "mvnw.cmd spring-boot:run"
