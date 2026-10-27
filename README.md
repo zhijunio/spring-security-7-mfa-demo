@@ -27,6 +27,14 @@ Open <http://localhost:8080/> and sign in with `demo` / `changeit`. State is in 
 
 Primary authentication uses a password or a Spring Security WebAuthn passkey assertion. After primary authentication, the user must verify an enrolled second factor: TOTP, development-only email OTP, EIP-191 wallet signature, or an application-specific BIP-39 mnemonic. The app enables Spring Security MFA with `@EnableMultiFactorAuthentication(authorities = {})`; app-specific authorization rules enforce the primary-plus-second-factor flow, and the server adds factor authorities only after verification. MFA state is held in the server-side Spring Security session. Request bodies and custom headers cannot grant roles or MFA state. Protected resources remain unavailable until the second factor succeeds. The session flow retains CSRF protection; write requests must send the header and token returned by `GET /api/auth/csrf`.
 
+After primary authentication, protected APIs remain locked until the second factor is verified:
+
+![The user has passed primary authentication and is prompted for MFA](docs/images/01-primary-auth-pending-mfa.webp)
+
+After successful MFA verification, the protected user API becomes available:
+
+![MFA is complete and the protected user API is available](docs/images/02-mfa-complete.webp)
+
 Factor management, passkey registration, and security-status reads require MFA completed within the last five minutes. The demo supports managing TOTP, wallet-signature, and mnemonic factors; it does not provide one-time recovery codes. It implements a two-step flow but does not assess whether the selected factors belong to distinct categories or whether a passkey performed user verification, so not every combination necessarily meets a strict MFA assurance policy. API errors use RFC 9457 `application/problem+json`.
 
 ## API contract

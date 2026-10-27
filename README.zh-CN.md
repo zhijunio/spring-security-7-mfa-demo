@@ -27,6 +27,14 @@
 
 主认证支持密码登录或 Spring Security WebAuthn Passkey assertion。主认证完成后，用户还需验证已启用的第二因子：TOTP、开发用途邮件验证码、EIP-191 钱包签名或应用专用 BIP-39 助记词。应用通过 `@EnableMultiFactorAuthentication(authorities = {})` 启用 Spring Security MFA 支持，再由应用级授权规则执行主认证加第二因子的流程；只有验证成功后，服务端才会授予因子 authority。MFA 状态保存在服务端 Spring Security session 中；请求体和自定义请求头不能授予角色或 MFA 状态。完成第二因子前，普通资源不可访问。Session 流程保留 CSRF 防护，写请求须提交 `GET /api/auth/csrf` 返回的 header 和 token。
 
+主认证通过后，受保护接口仍不可访问，直到第二因子验证成功：
+
+![用户已通过主认证，页面仍要求完成 MFA](docs/images/01-primary-auth-pending-mfa.webp)
+
+第二因子验证成功后，受保护的用户接口才会开放：
+
+![MFA 已完成，受保护的用户接口可以访问](docs/images/02-mfa-complete.webp)
+
 因子管理、Passkey 注册和安全状态读取要求最近五分钟内完成 MFA。示例支持管理 TOTP、钱包签名和助记词因子，不提供一次性恢复码。示例实现两步验证流程，但不判断两个因子是否属于不同类别，也不校验 Passkey 是否执行了用户验证，因此并非所有组合都能满足严格的 MFA assurance 策略。API 拒绝响应使用 RFC 9457 `application/problem+json`。
 
 ## 接口契约
