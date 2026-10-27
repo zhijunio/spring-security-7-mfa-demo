@@ -45,9 +45,9 @@ public class SecurityConfig {
                                 "/app.js",
                                 "/styles.css",
                                 "/error",
-                                "/login",
+                                "/api/auth/login",
                                 "/logout",
-                                "/api/csrf",
+                                "/api/auth/csrf",
                                 "/api/auth/state",
                                 // Public docs are for this local demo only; production must protect or disable them.
                                 "/v3/api-docs/**",
@@ -66,7 +66,7 @@ public class SecurityConfig {
                         .access((a, c) -> new org.springframework.security.authorization.AuthorizationDecision(
                                 mfa.complete(a.get()))))
                 .exceptionHandling(e -> e.authenticationEntryPoint(problems).accessDeniedHandler(problems))
-                .formLogin(f -> f.loginPage("/").loginProcessingUrl("/login").permitAll())
+                .formLogin(f -> f.loginPage("/").loginProcessingUrl("/api/auth/login").permitAll())
                 .webAuthn(w -> w.rpName("MFA Demo")
                         .rpId("localhost")
                         .allowedOrigins("http://localhost:8080")

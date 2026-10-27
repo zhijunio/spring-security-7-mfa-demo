@@ -21,7 +21,7 @@ public class MfaController {
         this.mfa = mfa;
     }
 
-    @GetMapping("/csrf")
+    @GetMapping("/auth/csrf")
     Map<String, String> csrf(CsrfToken token) {
         return Map.of("headerName", token.getHeaderName(), "token", token.getToken());
     }

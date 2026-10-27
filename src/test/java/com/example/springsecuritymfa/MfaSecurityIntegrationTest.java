@@ -31,11 +31,11 @@ class MfaSecurityIntegrationTest {
     @Test
     void csrfTokenFromPageMustBeSentAsHeaderForPasswordLogin() throws Exception {
         var csrfResponse =
-                mvc.perform(get("/api/csrf")).andExpect(status().isOk()).andReturn();
+                mvc.perform(get("/api/auth/csrf")).andExpect(status().isOk()).andReturn();
         String body = csrfResponse.getResponse().getContentAsString();
         String token = body.replaceAll("(?s).*\\\"token\\\":\\\"([^\\\"]+)\\\".*", "$1");
         String headerName = body.replaceAll("(?s).*\\\"headerName\\\":\\\"([^\\\"]+)\\\".*", "$1");
-        mvc.perform(post("/login")
+        mvc.perform(post("/api/auth/login")
                         .session((MockHttpSession) csrfResponse.getRequest().getSession(false))
                         .param("username", "demo")
                         .param("password", "changeit")
@@ -46,7 +46,7 @@ class MfaSecurityIntegrationTest {
     @Test
     void primaryLoginCannotReadUserApiButVerifiedMfaCan() throws Exception {
         var login = mvc.perform(
-                        post("/login").with(csrf()).param("username", "demo").param("password", "changeit"))
+                        post("/api/auth/login").with(csrf()).param("username", "demo").param("password", "changeit"))
                 .andExpect(status().isFound())
                 .andReturn();
         MockHttpSession session = (MockHttpSession) login.getRequest().getSession(false);

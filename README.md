@@ -25,20 +25,20 @@ Open <http://localhost:8080/> and sign in with `demo` / `changeit`. State is in 
 
 ## Authentication flow and security boundaries
 
-Primary authentication uses a password or a Spring Security WebAuthn passkey assertion. After primary authentication, the user must verify an enrolled second factor: TOTP, development-only email OTP, EIP-191 wallet signature, or an application-specific BIP-39 mnemonic. The app enables Spring Security MFA with `@EnableMultiFactorAuthentication(authorities = {})`; app-specific authorization rules enforce the primary-plus-second-factor flow, and the server adds factor authorities only after verification. MFA state is held in the server-side Spring Security session. Request bodies and custom headers cannot grant roles or MFA state. Protected resources remain unavailable until the second factor succeeds. The session flow retains CSRF protection; write requests must send the header and token returned by `GET /api/csrf`.
+Primary authentication uses a password or a Spring Security WebAuthn passkey assertion. After primary authentication, the user must verify an enrolled second factor: TOTP, development-only email OTP, EIP-191 wallet signature, or an application-specific BIP-39 mnemonic. The app enables Spring Security MFA with `@EnableMultiFactorAuthentication(authorities = {})`; app-specific authorization rules enforce the primary-plus-second-factor flow, and the server adds factor authorities only after verification. MFA state is held in the server-side Spring Security session. Request bodies and custom headers cannot grant roles or MFA state. Protected resources remain unavailable until the second factor succeeds. The session flow retains CSRF protection; write requests must send the header and token returned by `GET /api/auth/csrf`.
 
 Factor management, passkey registration, and security-status reads require MFA completed within the last five minutes. The demo supports managing TOTP, wallet-signature, and mnemonic factors; it does not provide one-time recovery codes. It implements a two-step flow but does not assess whether the selected factors belong to distinct categories or whether a passkey performed user verification, so not every combination necessarily meets a strict MFA assurance policy. API errors use RFC 9457 `application/problem+json`.
 
 ## API contract
 
-The app uses same-origin HTTP endpoints, JSON bodies for API calls, and a server-side `JSESSIONID` session. Primary login is `POST /login` with form fields `username` and `password`; passkey login uses Spring Security WebAuthn endpoints. After primary login, request a challenge when needed with `POST /api/auth/mfa/challenge` (for example, `{"factorType":"EMAIL_OTP"}`), then submit the factor proof to `POST /api/auth/mfa/verify` (for example, `{"factorType":"TOTP","proof":"123456"}`).
+The app uses same-origin HTTP endpoints, JSON bodies for API calls, and a server-side `JSESSIONID` session. Fetch the CSRF token from `GET /api/auth/csrf`. Primary password login is `POST /api/auth/login` with form fields `username` and `password`; passkey login uses Spring Security WebAuthn endpoints. After primary login, request a challenge when needed with `POST /api/auth/mfa/challenge` (for example, `{"factorType":"EMAIL_OTP"}`), then submit the factor proof to `POST /api/auth/mfa/verify` (for example, `{"factorType":"TOTP","proof":"123456"}`).
 
 | Method and path | Contract | Access requirement |
 | --- | --- | --- |
-| `POST /login` | Form fields `username`, `password` | Public primary login |
+| `POST /api/auth/login` | Form fields `username`, `password` | Public primary login |
 | `POST /login/webauthn` | WebAuthn assertion JSON | Public passkey primary login |
 | `POST /webauthn/authenticate/options` | Starts a passkey assertion ceremony | Public primary login |
-| `GET /api/csrf` | Returns `headerName` and `token` for subsequent writes | Public bootstrap |
+| `GET /api/auth/csrf` | Returns `headerName` and `token` for subsequent writes | Public bootstrap |
 | `GET /api/auth/state` | Returns `primaryAuthenticated`, `mfaComplete`, and `username` | Public bootstrap |
 | `POST /api/auth/mfa/challenge` | JSON `{ "factorType": "EMAIL_OTP" }` or `WALLET_SIGNATURE`; TOTP, mnemonic, and WebAuthn need no separate challenge | Primary login |
 | `POST /api/auth/mfa/verify` | JSON `{ "factorType": "TOTP", "proof": "..." }`; also accepts `EMAIL_OTP`, `WALLET_SIGNATURE`, or `BIP39_MNEMONIC` | Primary login |
@@ -54,7 +54,7 @@ The app uses same-origin HTTP endpoints, JSON bodies for API calls, and a server
 | `POST /webauthn/register/options`, `POST /webauthn/register` | WebAuthn registration ceremony | Recent MFA, within five minutes |
 | `POST /logout` | Invalidates the current session, if present | Any session |
 
-All state-changing requests, including login and logout, must send the CSRF token using the header name returned by `GET /api/csrf`; keep the same session cookie. Invalid or expired proofs and other invalid input return `400`; state conflicts such as removing an unenrolled factor return `409`. Unauthenticated requests return `401`, and requests without the required authentication stage return `403`. These errors use `application/problem+json`. OpenAPI provides endpoint documentation and available schemas in [OpenAPI JSON](http://localhost:8080/v3/api-docs) and [Swagger UI](http://localhost:8080/swagger-ui/index.html). These documentation endpoints are anonymous in this local demo; protect or disable them in production.
+All state-changing requests, including login and logout, must send the CSRF token using the header name returned by `GET /api/auth/csrf`; keep the same session cookie. Invalid or expired proofs and other invalid input return `400`; state conflicts such as removing an unenrolled factor return `409`. Unauthenticated requests return `401`, and requests without the required authentication stage return `403`. These errors use `application/problem+json`. OpenAPI provides endpoint documentation and available schemas in [OpenAPI JSON](http://localhost:8080/v3/api-docs) and [Swagger UI](http://localhost:8080/swagger-ui/index.html). These documentation endpoints are anonymous in this local demo; protect or disable them in production.
 
 ### Factors
 
